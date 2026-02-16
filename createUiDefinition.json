@@ -1,0 +1,141 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": true,
+      "basics": {}
+    },
+    "basics": [
+      {
+        "name": "siteName",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Web App Name",
+        "toolTip": "Name of the App Service Web App. This will be used for the URL of the website, however a custom domain can be added later.",
+        "defaultValue": "maester-dashboard",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-zA-Z0-9-]{2,60}$",
+          "validationMessage": "Only alphanumeric and hyphen, 2-60 chars."
+        }
+      },
+      {
+        "name": "appPlanSelectorInfo",
+        "type": "Microsoft.Common.TextBlock",
+        "visible": true,
+        "options": {
+          "text": "As default this will deploy a B1 SKU App Service Plan. If you choose to use an existing App Service Plan, ensure it is in the same location as the Web App and supports the required features (e.g., Linux, if applicable).",
+          "link": {
+            "label": "Learn more",
+            "uri": "https://docs.fortytwo.io"
+          }
+        }
+      },
+      {
+        "name": "existingAppPlan",
+        "type": "Microsoft.Common.CheckBox",
+        "label": "Use an existing App Service Plan?",
+        "toolTip": "Select if you want to use an existing App Service Plan.",
+        "constraints": {
+          "required": false,
+          "validationMessage": "Please make a choice."
+        }
+      },
+      {
+        "name": "appPlanSelector",
+        "type": "Microsoft.Solutions.ResourceSelector",
+        "label": "Select existing Azure App Plan accounts",
+        "resourceType": "Microsoft.Web/serverfarms",
+        "toolTip": "Select an existing App Service Plan to use.",
+        "options": {
+          "filter": {
+            "subscription": "onBasics",
+            "location": "onBasics"
+          }
+        },
+        "visible": "[basics('existingAppPlan')]"
+      }
+    ],
+    "steps": [
+      {
+        "name": "authStep",
+        "label": "Authentication",
+        "elements": [
+          {
+            "name": "servicePrincipalInfo",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": true,
+            "options": {
+              "text": "The Maester Dashboard requires a Service Principal for Single Sign-On (SSO) authentication. You can choose an existing one or create a new one, and you need to create a client secret for it. The Service Principal must have the 'User.Read' permission in Microsoft Graph. You can change these settings later in the Azure Portal if needed.",
+              "link": {
+                "label": "Learn more",
+                "uri": "https://docs.fortytwo.io"
+              }
+            }
+          },
+          {
+            "name": "ServicePrincipal",
+            "type": "Microsoft.Common.ServicePrincipalSelector",
+            "label": {
+              "password": "Client Secret",
+              "certificateThumbprint": "Certificate thumbprint",
+              "authenticationType": "Authentication Type",
+              "sectionHeader": "Service Principal used for SSO authentication"
+            },
+            "toolTip": {
+              "password": "Enter the Client Secret",
+              "certificateThumbprint": "Certificate thumbprint",
+              "authenticationType": "Authentication Type"
+            },
+            "defaultValue": {
+              "principalId": "<default guid>",
+              "name": "(New) Maester Service Principal"
+            },
+            "constraints": {
+              "required": true
+            },
+            "options": {
+              "hideCertificate": true
+            },
+            "visible": true
+          },
+          {
+            "name": "ssoNote",
+            "type": "Microsoft.Common.TextBlock",
+            "visible": true,
+            "options": {
+              "text": "After the deployment is complete, a reply URI will be generated and shown in outputs. This URI must be added to the App Registration's authentication settings to finalize the Single Sign-On configuration."
+            }
+          }
+        ]
+      },
+      {
+        "name": "tags",
+        "label": "Tags",
+        "elements": [
+          {
+            "name": "tags",
+            "type": "Microsoft.Common.TagsByResource",
+            "toolTip": "Select tags to apply to the resources.",
+            "resources": [
+              "Microsoft.Web/sites",
+              "Microsoft.Web/serverfarms",
+              "Microsoft.ManagedIdentity/userAssignedIdentities"
+            ]
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "location": "[location()]",
+      "siteName": "[basics('siteName')]",
+      "existingAppPlan": "[basics('existingAppPlan')]",
+      "appServicePlanResourceId": "[if(basics('existingAppPlan'), basics('appPlanSelector').id, '')]",
+      "tenantId": "[subscription().tenantId]",
+      "authClientId": "[steps('authStep').ServicePrincipal.appId]",
+      "authClientSecret": "[steps('authStep').ServicePrincipal.password]",
+      "TagsByResource": "[steps('tags').tags]"
+    }
+  }
+}
