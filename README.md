@@ -17,6 +17,10 @@ A turnkey deployment for running [Maester](https://maester.dev) security posture
 | **Storage & Log Management** | Built-in cleanup tools, log viewer with severity highlighting, and retention policies |
 | **SSO Authentication** | Azure App Service Easy Auth with Entra ID — no anonymous access |
 
+> [!IMPORTANT]
+> **UTCM requires additional setup.** Before using Unified Tenant Configuration Management features, you must register and configure the UTCM enterprise application in your tenant by following the official Microsoft documentation:
+> [Get started with Unified Tenant Configuration Management](https://learn.microsoft.com/en-us/graph/utcm-authentication-setup)
+
 ---
 
 ## Architecture
