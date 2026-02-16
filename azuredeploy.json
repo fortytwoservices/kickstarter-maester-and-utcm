@@ -64,6 +64,19 @@
   "variables": {},
   "resources": [
     {
+      "apiVersion": "2020-06-01",
+      "name": "pid-15d47dd7-552d-4a12-87b0-163e393a9a10",
+      "type": "Microsoft.Resources/deployments",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": []
+        }
+      }
+    },
+    {
       "type": "Microsoft.Web/serverfarms",
       "apiVersion": "2024-11-01",
       "name": "[parameters('siteName')]",
