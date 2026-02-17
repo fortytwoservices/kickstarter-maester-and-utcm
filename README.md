@@ -18,8 +18,8 @@ A turnkey deployment for running [Maester](https://maester.dev) security posture
 | **SSO Authentication** | Azure App Service Easy Auth with Entra ID — no anonymous access |
 
 > [!IMPORTANT]
-> **UTCM requires additional setup.** Before using Unified Tenant Configuration Management features, you must register and configure the UTCM enterprise application in your tenant by following the official Microsoft documentation:
-> [Get started with Unified Tenant Configuration Management](https://learn.microsoft.com/en-us/graph/utcm-authentication-setup)
+> **UTCM requires additional setup.** Before using Unified Tenant Configuration Management features, you must onboard the UTCM service principal and grant permissions. Use the included `Enable-UTCM.ps1` script or follow the official Microsoft documentation:
+> [Set up authentication for UTCM](https://learn.microsoft.com/en-us/graph/utcm-authentication-setup)
 
 ---
 
@@ -145,38 +145,30 @@ The managed identity needs Microsoft Graph (and optionally Exchange/SharePoint) 
 
 > Requires **Global Administrator**, **Privileged Role Administrator**, or **Cloud Application Administrator** privileges.
 
-### 2. Grant UTCM Permissions (Optional)
+### 2. Enable UTCM (Optional)
 
-For configuration drift monitoring, the identity also needs:
+For configuration drift monitoring, you must first onboard UTCM in the tenant. This provisions the UTCM first-party service principal and grants it permissions to read workload configuration data.
 
+```powershell
+./scripts/Enable-UTCM.ps1 -TenantId '<tenantId>'
 ```
-ConfigurationMonitoring.ReadWrite.All
-ConfigurationMonitoring.Read.All
+
+This grants the UTCM service principal (AppId `03b07b79-c5bc-4b5e-9bfa-13acf4a99998`) the following Graph permissions:
+
+- `Directory.Read.All`, `Policy.Read.All`, `Policy.Read.ConditionalAccess`
+- `User.Read.All`, `Application.Read.All`, `Group.Read.All`
+- `RoleManagement.Read.Directory`, `Policy.Read.AuthenticationMethod`
+- `Organization.Read.All`, `SharePointTenantSettings.Read.All`
+
+**Exchange Online** resources require Exchange RBAC roles instead of Graph permissions. After running `Enable-UTCM.ps1`, connect to Exchange Online PowerShell and run:
+
+```powershell
+Connect-ExchangeOnline
+New-ManagementRoleAssignment -Role 'View-Only Configuration' -App '<utcm-sp-object-id>'
+New-ManagementRoleAssignment -Role 'Security Reader' -App '<utcm-sp-object-id>'
 ```
 
-Grant via Azure CLI:
-
-```bash
-# Get the managed identity's principal ID
-principalId=$(az webapp identity show \
-  --name <app-name> \
-  --resource-group <resource-group> \
-  --query principalId -o tsv)
-
-# Get Microsoft Graph service principal
-graphId=$(az ad sp list \
-  --filter "appId eq '00000003-0000-0000-c000-000000000000'" \
-  --query "[0].id" -o tsv)
-
-# Grant each role
-for role in ConfigurationMonitoring.ReadWrite.All ConfigurationMonitoring.Read.All; do
-  roleId=$(az ad sp show --id $graphId --query "appRoles[?value=='$role'].id" -o tsv)
-  az rest --method POST \
-    --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$graphId/appRoleAssignments" \
-    --headers "Content-Type=application/json" \
-    --body "{\"principalId\":\"$principalId\",\"resourceId\":\"$graphId\",\"appRoleId\":\"$roleId\"}"
-done
-```
+See [Application access policies in Exchange Online](https://learn.microsoft.com/en-us/exchange/permissions-exo/application-rbac) for details.
 
 ### 3. Verify the Schedule
 
@@ -354,7 +346,8 @@ kickstarter-maester-and-utcm/
 ├── azuredeploy.json            # ARM template for Azure deployment
 ├── createUiDefinition.json     # Azure Portal custom deployment UI
 ├── scripts/
-│   └── Grant-APIPermissions.ps1  # Permission grant helper
+│   ├── Grant-APIPermissions.ps1  # Grant Maester Graph/Exchange/SharePoint permissions
+│   └── Enable-UTCM.ps1          # Onboard UTCM: provision SP + grant workload permissions
 ├── LICENSE                     # MIT License
 └── README.md                   # This file
 ```
