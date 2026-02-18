@@ -15,9 +15,6 @@
        access Entra ID, Exchange, and Teams configuration data.
     4. Verifies UTCM access by calling the configurationMonitors endpoint.
 
-    Run Activate-UTCM.ps1 afterwards to grant ConfigurationMonitoring permissions to
-    your dashboard's managed identity.
-
     Reference: https://learn.microsoft.com/en-us/graph/utcm-authentication-setup
 
 .PARAMETER TenantId
@@ -164,7 +161,7 @@ if (-not $SkipVerification) {
         if ($errMsg -match 'not provisioned|not been onboarded|unknown error') {
             Write-Host "`nUTCM provisioning may still be propagating." -ForegroundColor Yellow
             Write-Host "Wait a few minutes and retry verification, or check the Entra admin center:" -ForegroundColor White
-            Write-Host "  https://entra.microsoft.com > Identity > Overview > Tenant management (Preview)" -ForegroundColor White
+            Write-Host "  https://entra.microsoft.com > Enterprise Apps > Search for 'Unified Tenant Configuration Management'" -ForegroundColor White
         }
         elseif ($errMsg -match 'insufficient privileges|authorization|forbidden|consent') {
             Write-Host "`nPermissions have not fully propagated yet." -ForegroundColor Yellow
@@ -192,8 +189,7 @@ if ($utcmSkipped.Count -gt 0) {
 }
 
 Write-Host "`nNext steps:" -ForegroundColor White
-Write-Host "  1. Run Activate-UTCM.ps1 to grant ConfigurationMonitoring permissions to your dashboard identity." -ForegroundColor White
-Write-Host "  2. (Optional) Grant Exchange RBAC roles to the UTCM service principal for Exchange Online monitoring." -ForegroundColor White
+Write-Host "     (Optional) Grant Exchange RBAC roles to the UTCM service principal for Exchange Online monitoring." -ForegroundColor White
 Write-Host "     Exchange resources require Exchange management roles, not Graph API permissions." -ForegroundColor White
 Write-Host "     Connect to Exchange Online PowerShell and run:" -ForegroundColor White
 Write-Host "       Connect-ExchangeOnline" -ForegroundColor Gray
