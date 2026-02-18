@@ -161,7 +161,7 @@ if (-not $SkipVerification) {
         if ($errMsg -match 'not provisioned|not been onboarded|unknown error') {
             Write-Host "`nUTCM provisioning may still be propagating." -ForegroundColor Yellow
             Write-Host "Wait a few minutes and retry verification, or check the Entra admin center:" -ForegroundColor White
-            Write-Host "  https://entra.microsoft.com > Enterprise Apps > Search for 'Unified Tenant Configuration Management'" -ForegroundColor White
+            Write-Host "  https://entra.microsoft.com > Enterprise Apps > Change 'Application Type' to 'All Applications' > Search for 'Unified Tenant Configuration Management'" -ForegroundColor White
         }
         elseif ($errMsg -match 'insufficient privileges|authorization|forbidden|consent') {
             Write-Host "`nPermissions have not fully propagated yet." -ForegroundColor Yellow
