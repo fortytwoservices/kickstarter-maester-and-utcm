@@ -14,10 +14,10 @@ Added the Enable-UTCM.ps1 script to automate the setup of the Unified Tenant Con
 ### Added
 
 - **Enable-UTCM.ps1** completely rewritten with full permission automation for all 5 UTCM workloads
-  - Grants 22 Microsoft Graph API permissions (Entra ID, Intune, SharePoint)
-  - Grants `Exchange.ManageAsApp` on the Exchange Online service principal
-  - Assigns Entra ID directory roles: Global Reader, Security Reader, Compliance Administrator
-  - Optional `-IncludeExchangeRBAC` switch for Exchange Online RBAC role management (registers UTCM SP in Exchange Online, assigns View-Only Configuration and Security Reader roles)
+    - Grants 22 Microsoft Graph API permissions (Entra ID, Intune, SharePoint)
+    - Grants `Exchange.ManageAsApp` on the Exchange Online service principal
+    - Assigns Entra ID directory roles: Global Reader, Security Reader, Compliance Administrator
+    - Optional `-IncludeExchangeRBAC` switch for Exchange Online RBAC role management (registers UTCM SP in Exchange Online, assigns View-Only Configuration and Security Reader roles)
 - Resource budget tracking with per-run usage indicators
 - Retry baseline functionality when snapshot jobs fail
 - Failed snapshot job details displayed in the UI with error reasons
