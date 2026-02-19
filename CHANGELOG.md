@@ -4,6 +4,47 @@ All notable changes to the Maester & UTCM Dashboard will be documented in this f
 
 ---
 
+## [1.15.0] - 2026-02-20
+
+> [!WARNING]
+> **Please rerun the Enable-UTCM.ps1 and Grant-APIPermissions.ps1 scripts to ensure all permissions are correctly configured for the latest UTCM and Maester features.**
+
+Added the Enable-UTCM.ps1 script to automate the setup of the Unified Tenant Configuration Management (UTCM) solution. This script grants all necessary Microsoft Graph API permissions, assigns Entra ID directory roles, and optionally configures Exchange Online RBAC roles for comprehensive UTCM functionality. The help page now includes detailed parameter documentation and a preview of the script for easy access.
+
+### Added
+
+- **Enable-UTCM.ps1** completely rewritten with full permission automation for all 5 UTCM workloads
+  - Grants 22 Microsoft Graph API permissions (Entra ID, Intune, SharePoint)
+  - Grants `Exchange.ManageAsApp` on the Exchange Online service principal
+  - Assigns Entra ID directory roles: Global Reader, Security Reader, Compliance Administrator
+  - Optional `-IncludeExchangeRBAC` switch for Exchange Online RBAC role management (registers UTCM SP in Exchange Online, assigns View-Only Configuration and Security Reader roles)
+- Resource budget tracking with per-run usage indicators
+- Retry baseline functionality when snapshot jobs fail
+- Failed snapshot job details displayed in the UI with error reasons
+- Monitor health status indicators with severity-based risk labeling
+- UTCM API error detection with guided setup link to the help page
+- Script download and preview for Enable-UTCM.ps1 and Grant-APIPermissions.ps1 on the help page
+- Changelog page with version history and update highlights
+- Automated update checks on the homepage with notifications for new releases of the container image
+
+### Changed
+
+- Log page updated with time filters, and more responsive.
+- Background refresh uses adaptive intervals (30s to 5m) with fast mode during active wizard flows
+- Improved snapshot error messaging with failed resource details from the Graph API
+- Help page updated with full parameter documentation for Enable-UTCM.ps1
+
+### Fixed
+
+- Log cleanup no longer fails on concurrent file access (idempotent dual-logging with mutex)
+- Wizard button correctly disables when UTCM API is not consented
+- Modals close on Escape key press
+
+### Removed
+- Deprecated the "Priviliged Roles Guard" monitor template as the resources monitored was excessive (more than the allotted quota). Existing monitors of this type will continue to function but cannot be edited or recreated.
+
+---
+
 ## [1.14.0] - 2026-02-16
 
 ### Added (UTCM - BETA)
