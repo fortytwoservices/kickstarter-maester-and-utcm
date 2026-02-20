@@ -20,8 +20,11 @@
 .PARAMETER Tenant
     The Entra tenant ID (GUID).
 
-.PARAMETER IncludeExchangeOnline
-    If specified, also grants Exchange Online API permissions for EXO tests.
+.PARAMETER IncludeExchange
+    If specified, grants Exchange Online API permissions (Exchange.ManageAsApp),
+    assigns Exchange-related directory roles (Exchange Administrator, Compliance Administrator),
+    registers the service principal in Exchange Online, and assigns RBAC management roles
+    (Compliance Management). Requires the ExchangeOnlineManagement module.
 
 .PARAMETER IncludeSharePoint
     If specified, also grants SharePoint API permissions for SharePoint tests.
@@ -36,7 +39,7 @@
 
 .EXAMPLE
     # Grant with Exchange and SharePoint permissions
-    ./Grant-APIPermissions.ps1 -identityAccountName "my-maester-app" -Tenant "00000000-0000-0000-0000-000000000000" -IncludeExchangeOnline -IncludeSharePoint
+    ./Grant-APIPermissions.ps1 -identityAccountName "my-maester-app" -Tenant "00000000-0000-0000-0000-000000000000" -IncludeExchange -IncludeSharePoint
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
@@ -44,7 +47,7 @@ param(
   [string]$identityAccountName,
   [Parameter(Mandatory)]
   [string]$Tenant,
-  [switch]$IncludeExchangeOnline,
+  [switch]$IncludeExchange,
   [switch]$IncludeSharePoint
 )
 
@@ -123,12 +126,40 @@ $SharePointRequiredPermissions = @(
   'Sites.FullControl.All'
 )
 
+# Directory roles (always assigned)
+$DirectoryRolesAlways = @(
+    'Teams Reader'
+)
+
+# Directory roles for Exchange Online
+$DirectoryRolesExchange = @(
+    'Exchange Administrator',
+    'Compliance Administrator'
+)
+
+# Exchange RBAC management roles for Maester
+$ExchangeRBACRoles = @(
+    'View-Only Configuration',
+    'Security Reader',
+    'View-Only Recipients'
+)
+
 if (Get-Module -ListAvailable Microsoft.Graph) { 
   Write-Host 'Module is installed' 
 }
 else { 
   Write-Host 'Module is NOT installed'
   Install-Module Microsoft.Graph -Scope CurrentUser
+}
+
+if ($IncludeExchange) {
+    if (Get-Module -ListAvailable ExchangeOnlineManagement) {
+        Write-Host "ExchangeOnlineManagement module: installed" -ForegroundColor Green
+    }
+    else {
+        Write-Host "Installing ExchangeOnlineManagement module..." -ForegroundColor Yellow
+        Install-Module ExchangeOnlineManagement -Scope CurrentUser -Force
+    }
 }
 
 Write-Host "Connecting to Microsoft Graph (Tenant: $Tenant) ..." -ForegroundColor Cyan
@@ -216,151 +247,135 @@ $graphResult = Grant-AppRoleAssignments -ResourceAppId $GraphAppId -ResourceName
 
 # Process Exchange Online permissions if requested
 $exoResult = @{ Assigned = @(); Skipped = @() }
-$exoRoleAssigned = $false
-if ($IncludeExchangeOnline) {
+if ($IncludeExchange) {
   $exoResult = Grant-AppRoleAssignments -ResourceAppId $ExchangeAppId -ResourceName 'Exchange Online' -Permissions $ExchangeRequiredPermissions -TargetSP $WebAppMSI
-  
-  # Also assign Exchange Administrator directory role (required for EXO PowerShell)
-  Write-Host "`n=== Processing Exchange Administrator Role ===" -ForegroundColor Cyan
-  try {
-    $exoAdminRole = Get-MgDirectoryRole -Filter "displayName eq 'Exchange Administrator'" -ErrorAction SilentlyContinue
-    if (-not $exoAdminRole) {
-      # Role not yet activated, activate it from template
-      Write-Host "Activating Exchange Administrator role..." -ForegroundColor Yellow
-      $allTemplates = Get-MgDirectoryRoleTemplate -All
-      $roleTemplate = $allTemplates | Where-Object { $_.DisplayName -eq 'Exchange Administrator' }
-      if ($roleTemplate) {
-        $exoAdminRole = New-MgDirectoryRole -RoleTemplateId $roleTemplate.Id
-      }
-    }
-    
-    if ($exoAdminRole) {
-      if ($PSCmdlet.ShouldProcess($WebAppMSI.DisplayName, "Assign Exchange Administrator directory role")) {
-        try {
-          $memberBody = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($WebAppMSI.Id)" }
-          New-MgDirectoryRoleMemberByRef -DirectoryRoleId $exoAdminRole.Id -BodyParameter $memberBody -ErrorAction Stop
-          Write-Host "Exchange Administrator role: Assigned" -ForegroundColor Green
-          $exoRoleAssigned = $true
-        }
-        catch {
-          if ($_.Exception.Message -match 'already exist') {
-            Write-Host "Exchange Administrator role: Already assigned" -ForegroundColor Yellow
-          } else {
-            throw
-          }
-        }
-      }
-    } else {
-      Write-Warning "Could not find or activate Exchange Administrator role"
-    }
-  }
-  catch {
-    Write-Warning "Failed to assign Exchange Administrator role: $($_.Exception.Message)"
-  }
-
-  # Also assign Compliance Administrator role (required for Security & Compliance PowerShell)
-  Write-Host "`n=== Processing Compliance Administrator Role ===" -ForegroundColor Cyan
-  try {
-    $complianceAdminRole = Get-MgDirectoryRole -Filter "displayName eq 'Compliance Administrator'" -ErrorAction SilentlyContinue
-    if (-not $complianceAdminRole) {
-      # Role not yet activated, activate it from template
-      Write-Host "Activating Compliance Administrator role..." -ForegroundColor Yellow
-      $allTemplates = Get-MgDirectoryRoleTemplate -All
-      $roleTemplate = $allTemplates | Where-Object { $_.DisplayName -eq 'Compliance Administrator' }
-      if ($roleTemplate) {
-        $complianceAdminRole = New-MgDirectoryRole -RoleTemplateId $roleTemplate.Id
-      }
-    }
-    
-    if ($complianceAdminRole) {
-      if ($PSCmdlet.ShouldProcess($WebAppMSI.DisplayName, "Assign Compliance Administrator directory role")) {
-        try {
-          $memberBody = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($WebAppMSI.Id)" }
-          New-MgDirectoryRoleMemberByRef -DirectoryRoleId $complianceAdminRole.Id -BodyParameter $memberBody -ErrorAction Stop
-          Write-Host "Compliance Administrator role: Assigned" -ForegroundColor Green
-        }
-        catch {
-          if ($_.Exception.Message -match 'already exist') {
-            Write-Host "Compliance Administrator role: Already assigned" -ForegroundColor Yellow
-          } else {
-            throw
-          }
-        }
-      }
-    } else {
-      Write-Warning "Could not find or activate Compliance Administrator role"
-    }
-  }
-  catch {
-    Write-Warning "Failed to assign Compliance Administrator role: $($_.Exception.Message)"
-  }
-  
-  # Exchange Management Roles (required for Security & Compliance PowerShell)
-  Write-Host "`n=== Exchange Management Roles ===" -ForegroundColor Cyan
-  Write-Host "Exchange admin roles require the service principal to sync to Exchange Online." -ForegroundColor Yellow
-  Write-Host ""
-  Write-Host "Steps to assign Exchange roles:" -ForegroundColor Cyan
-  Write-Host ""
-  Write-Host "1. Wait 10-15 minutes for Azure AD sync to Exchange Online" -ForegroundColor White
-  Write-Host ""
-  Write-Host "2. Connect to Exchange Online:" -ForegroundColor White
-  Write-Host "   Connect-ExchangeOnline" -ForegroundColor Gray
-  Write-Host ""
-  Write-Host "3. Verify service principal is visible:" -ForegroundColor White
-  Write-Host "   Get-ServicePrincipal -Identity '$($WebAppMSI.AppId)'" -ForegroundColor Gray
-  Write-Host ""
-  Write-Host "4. If not found, trigger sync by accessing Exchange with the identity:" -ForegroundColor White
-  Write-Host "   Get-Mailbox -ResultSize 1 -ErrorAction SilentlyContinue" -ForegroundColor Gray
-  Write-Host "   (This may fail but helps trigger registration)" -ForegroundColor Gray
-  Write-Host ""
-  Write-Host "5. Once visible, assign the role:" -ForegroundColor White
-  Write-Host "   New-ManagementRoleAssignment -Role 'Compliance Management' -App '$($WebAppMSI.AppId)' -Name 'ComplianceManagement-$($WebAppMSI.DisplayName)'" -ForegroundColor Gray
-  Write-Host ""
-  Write-Host "6. Verify the assignment:" -ForegroundColor White
-  Write-Host "   Get-ManagementRoleAssignment -RoleAssignee '$($WebAppMSI.AppId)'" -ForegroundColor Gray
-  Write-Host ""
-  Write-Host "App ID: $($WebAppMSI.AppId)" -ForegroundColor Green
-  Write-Host "Display Name: $($WebAppMSI.DisplayName)" -ForegroundColor Green
 }
 
-# Assign Teams Reader role (required for Teams tests)
-# This is always assigned since Teams Graph permissions are in the default set
-$teamsRoleAssigned = $false
-Write-Host "`n=== Processing Teams Reader Role ===" -ForegroundColor Cyan
-try {
-  $teamsReaderRole = Get-MgDirectoryRole -Filter "displayName eq 'Teams Reader'" -ErrorAction SilentlyContinue
-  if (-not $teamsReaderRole) {
-    # Role not yet activated, activate it from template
-    Write-Host "Activating Teams Reader role..." -ForegroundColor Yellow
-    $allTemplates = Get-MgDirectoryRoleTemplate -All
-    $roleTemplate = $allTemplates | Where-Object { $_.DisplayName -eq 'Teams Reader' }
-    if ($roleTemplate) {
-      $teamsReaderRole = New-MgDirectoryRole -RoleTemplateId $roleTemplate.Id
-    }
-  }
-  
-  if ($teamsReaderRole) {
-    if ($PSCmdlet.ShouldProcess($WebAppMSI.DisplayName, "Assign Teams Reader directory role")) {
-      try {
-        $memberBody = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($WebAppMSI.Id)" }
-        New-MgDirectoryRoleMemberByRef -DirectoryRoleId $teamsReaderRole.Id -BodyParameter $memberBody -ErrorAction Stop
-        Write-Host "Teams Reader role: Assigned" -ForegroundColor Green
-        $teamsRoleAssigned = $true
-      }
-      catch {
-        if ($_.Exception.Message -match 'already exist') {
-          Write-Host "Teams Reader role: Already assigned" -ForegroundColor Yellow
-        } else {
-          throw
-        }
-      }
-    }
-  } else {
-    Write-Warning "Could not find or activate Teams Reader role"
-  }
+# --- Assign Entra ID directory roles ---
+$allDirectoryRoles = [System.Collections.Generic.List[string]]::new()
+foreach ($r in $DirectoryRolesAlways) { $allDirectoryRoles.Add($r) }
+if ($IncludeExchange) {
+    foreach ($r in $DirectoryRolesExchange) { $allDirectoryRoles.Add($r) }
 }
-catch {
-  Write-Warning "Failed to assign Teams Reader role: $($_.Exception.Message)"
+
+$rolesAssigned = @()
+$rolesSkipped = @()
+
+Write-Host "`n=== Processing Directory Roles ===" -ForegroundColor Cyan
+
+foreach ($roleName in $allDirectoryRoles) {
+    try {
+        $roleDefResponse = Invoke-MgGraphRequest -Method GET `
+            -Uri "https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?`$filter=displayName eq '$roleName'" `
+            -ErrorAction Stop
+
+        if (-not $roleDefResponse.value -or $roleDefResponse.value.Count -eq 0) {
+            Write-Warning "Directory role '$roleName' not found. Skipping."
+            continue
+        }
+
+        $roleDefId = $roleDefResponse.value[0].id
+
+        $existingRoleAssignment = Invoke-MgGraphRequest -Method GET `
+            -Uri "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments?`$filter=principalId eq '$($WebAppMSI.Id)' and roleDefinitionId eq '$roleDefId'" `
+            -ErrorAction Stop
+
+        if ($existingRoleAssignment.value -and $existingRoleAssignment.value.Count -gt 0) {
+            Write-Host "  $roleName - already assigned" -ForegroundColor Yellow
+            $rolesSkipped += $roleName
+            continue
+        }
+
+        if ($PSCmdlet.ShouldProcess($WebAppMSI.DisplayName, "Assign directory role: $roleName")) {
+            $body = @{
+                roleDefinitionId = $roleDefId
+                principalId      = $WebAppMSI.Id
+                directoryScopeId = '/'
+            }
+            Invoke-MgGraphRequest -Method POST `
+                -Uri 'https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments' `
+                -Body $body `
+                -ErrorAction Stop | Out-Null
+            Write-Host "  $roleName - assigned" -ForegroundColor Green
+            $rolesAssigned += $roleName
+        }
+    }
+    catch {
+        Write-Warning "  Failed to assign role '${roleName}': $($_.Exception.Message)"
+    }
+}
+
+# --- (Optional) Grant Exchange RBAC management roles ---
+$exoRBACAssigned = @()
+$exoRBACSkipped = @()
+$exoSPRegistered = $false
+
+if ($IncludeExchange) {
+    Write-Host "`n=== Processing Exchange RBAC Roles ===" -ForegroundColor Cyan
+    Write-Host "Connecting to Exchange Online..." -ForegroundColor Cyan
+
+    try {
+        Import-Module ExchangeOnlineManagement -ErrorAction Stop
+        Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop
+
+        $existingExoSP = Get-ServicePrincipal -Identity $WebAppMSI.Id -ErrorAction SilentlyContinue
+        if ($existingExoSP) {
+            Write-Host "  Service principal already registered in Exchange Online" -ForegroundColor Yellow
+            $exoSPRegistered = $true
+        }
+        else {
+            if ($PSCmdlet.ShouldProcess('Exchange Online', "Register service principal (ObjectId: $($WebAppMSI.Id))")) {
+                Write-Host "  Registering service principal in Exchange Online..." -ForegroundColor White
+                try {
+                    New-ServicePrincipal -AppId $WebAppMSI.AppId -ObjectId $WebAppMSI.Id -DisplayName $WebAppMSI.DisplayName -ErrorAction Stop | Out-Null
+                    Write-Host "  Service principal registered in Exchange Online" -ForegroundColor Green
+                    $exoSPRegistered = $true
+                }
+                catch {
+                    if ($_.Exception.Message -match 'already exists|already registered|duplicate') {
+                        Write-Host "  Service principal already registered in Exchange Online" -ForegroundColor Yellow
+                        $exoSPRegistered = $true
+                    }
+                    else {
+                        Write-Warning "  Failed to register SP in Exchange Online: $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+
+        if ($exoSPRegistered) {
+            foreach ($roleName in $ExchangeRBACRoles) {
+                try {
+                    New-ManagementRoleAssignment -Role $roleName -App $WebAppMSI.Id -ErrorAction Stop | Out-Null
+                    Write-Host "  $roleName - assigned" -ForegroundColor Green
+                    $exoRBACAssigned += $roleName
+                }
+                catch {
+                    if ($_.Exception.Message -match 'is already assigned|already exists|duplicate') {
+                        Write-Host "  $roleName - already assigned" -ForegroundColor Yellow
+                        $exoRBACSkipped += $roleName
+                    }
+                    else {
+                        Write-Warning "  Failed to assign Exchange role '${roleName}': $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+        else {
+            Write-Warning "Skipping Exchange RBAC role assignments (SP not registered in Exchange Online)."
+        }
+
+        Disconnect-ExchangeOnline -Confirm:$false -ErrorAction SilentlyContinue
+    }
+    catch {
+        Write-Warning "Failed to connect to Exchange Online: $($_.Exception.Message)"
+        Write-Host "  You can manually connect and run:" -ForegroundColor White
+        Write-Host "    Connect-ExchangeOnline" -ForegroundColor Gray
+        Write-Host "    New-ServicePrincipal -AppId '$($WebAppMSI.AppId)' -ObjectId '$($WebAppMSI.Id)' -DisplayName '$($WebAppMSI.DisplayName)'" -ForegroundColor Gray
+        foreach ($roleName in $ExchangeRBACRoles) {
+            Write-Host "    New-ManagementRoleAssignment -Role '$roleName' -App '$($WebAppMSI.Id)'" -ForegroundColor Gray
+        }
+    }
 }
 
 # Process SharePoint permissions if requested
@@ -371,19 +386,42 @@ if ($IncludeSharePoint) {
 
 Write-Host "`n=== Summary ===" -ForegroundColor Cyan
 Write-Host "Microsoft Graph - Assigned: $($graphResult.Assigned.Count), Already present: $($graphResult.Skipped.Count)" -ForegroundColor Green
-Write-Host "Teams Reader Role - $(if ($teamsRoleAssigned) { 'Assigned' } else { 'Already present or skipped' })" -ForegroundColor Green
-if ($IncludeExchangeOnline) {
+if ($IncludeExchange) {
   Write-Host "Exchange Online - Assigned: $($exoResult.Assigned.Count), Already present: $($exoResult.Skipped.Count)" -ForegroundColor Green
-  Write-Host "Exchange Administrator Role - $(if ($exoRoleAssigned) { 'Assigned' } else { 'Already present or skipped' })" -ForegroundColor Green
 }
+
+Write-Host "`nDirectory roles - Assigned: $($rolesAssigned.Count), Already present: $($rolesSkipped.Count)" -ForegroundColor Green
+if ($rolesAssigned.Count -gt 0) {
+    Write-Host "  Newly assigned:" -ForegroundColor Green
+    foreach ($r in $rolesAssigned) { Write-Host "    - $r" -ForegroundColor Green }
+}
+
+if ($IncludeExchange) {
+    Write-Host "`nExchange RBAC roles - Assigned: $($exoRBACAssigned.Count), Already present: $($exoRBACSkipped.Count)" -ForegroundColor Green
+    if ($exoRBACAssigned.Count -gt 0) {
+        Write-Host "  Newly assigned:" -ForegroundColor Green
+        foreach ($r in $exoRBACAssigned) { Write-Host "    - $r" -ForegroundColor Green }
+    }
+}
+else {
+    Write-Host "`nExchange RBAC roles: Skipped (use -IncludeExchange to grant)" -ForegroundColor Yellow
+    Write-Host "  Exchange and Security & Compliance tests require RBAC roles." -ForegroundColor White
+    Write-Host "  Run again with -IncludeExchange, or manually run:" -ForegroundColor White
+    Write-Host "    Connect-ExchangeOnline" -ForegroundColor Gray
+    Write-Host "    New-ServicePrincipal -AppId '$($WebAppMSI.AppId)' -ObjectId '$($WebAppMSI.Id)' -DisplayName '$($WebAppMSI.DisplayName)'" -ForegroundColor Gray
+    foreach ($roleName in $ExchangeRBACRoles) {
+        Write-Host "    New-ManagementRoleAssignment -Role '$roleName' -App '$($WebAppMSI.Id)'" -ForegroundColor Gray
+    }
+}
+
 if ($IncludeSharePoint) {
-  Write-Host "SharePoint Online - Assigned: $($spoResult.Assigned.Count), Already present: $($spoResult.Skipped.Count)" -ForegroundColor Green
+  Write-Host "`nSharePoint Online - Assigned: $($spoResult.Assigned.Count), Already present: $($spoResult.Skipped.Count)" -ForegroundColor Green
 }
 
 Write-Host "`nDetailed assignments:" -ForegroundColor Yellow
 Write-Host ("Graph Assigned: {0}" -f ($graphResult.Assigned -join ', ')) -ForegroundColor Green
 Write-Host ("Graph Already present: {0}" -f ($graphResult.Skipped -join ', ')) -ForegroundColor Yellow
-if ($IncludeExchangeOnline) {
+if ($IncludeExchange) {
   Write-Host ("EXO Assigned: {0}" -f ($exoResult.Assigned -join ', ')) -ForegroundColor Green
   Write-Host ("EXO Already present: {0}" -f ($exoResult.Skipped -join ', ')) -ForegroundColor Yellow
 }

@@ -7,17 +7,15 @@ All notable changes to the Maester & UTCM Dashboard will be documented in this f
 ## [1.15.0] - 2026-02-20
 
 > [!WARNING]
-> **Please rerun the Enable-UTCM.ps1 and Grant-APIPermissions.ps1 scripts to ensure all permissions are correctly configured for the latest UTCM and Maester features.**
+> Please rerun the Enable-UTCM.ps1 and Grant-APIPermissions.ps1 scripts to ensure all permissions are correctly configured for the latest UTCM and Maester features.
 
 Added the Enable-UTCM.ps1 script to automate the setup of the Unified Tenant Configuration Management (UTCM) solution. This script grants all necessary Microsoft Graph API permissions, assigns Entra ID directory roles, and optionally configures Exchange Online RBAC roles for comprehensive UTCM functionality. The help page now includes detailed parameter documentation and a preview of the script for easy access.
 
 ### Added
 
-- **Enable-UTCM.ps1** completely rewritten with full permission automation for all 5 UTCM workloads — grants 22 Graph API permissions (Entra ID, Intune, SharePoint), `Exchange.ManageAsApp`, and assigns directory roles (Global Reader, Security Reader, Compliance Administrator)
-- New `-IncludeExchangeRBAC` switch for Exchange Online RBAC role management (registers UTCM SP in Exchange, assigns View-Only Configuration and Security Reader roles)
+- Enable-UTCM.ps1 script to automate UTCM setup with Graph API permissions, Entra ID roles, and optional Exchange Online RBAC role assignment
 - Resource budget tracking with per-run usage indicators
-- Retry baseline functionality when snapshot jobs fail
-- Failed snapshot job details displayed in the UI with error reasons
+- Retry baseline functionality when snapshot jobs fail, failed snapshot job details displayed in the UI with error reasons
 - Monitor health status indicators with severity-based risk labeling
 - UTCM API error detection with guided setup link to the help page
 - Script download and preview for Enable-UTCM.ps1 and Grant-APIPermissions.ps1 on the help page
@@ -30,6 +28,7 @@ Added the Enable-UTCM.ps1 script to automate the setup of the Unified Tenant Con
 - Background refresh uses adaptive intervals (30s to 5m) with fast mode during active wizard flows
 - Improved snapshot error messaging with failed resource details from the Graph API
 - Help page updated with full parameter documentation for Enable-UTCM.ps1
+- Changed the parameters and RBAC permissions/roles of the Grant-APIPermissions.ps1 script to align with the new Enable-UTCM.ps1 script, which now includes an option to assign Exchange Online RBAC roles in addition to Graph API permissions and Entra ID directory roles.
 
 ### Fixed
 

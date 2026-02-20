@@ -33,7 +33,7 @@
 .PARAMETER SkipVerification
     If specified, skips the post-grant verification call to the configurationMonitors endpoint.
 
-.PARAMETER IncludeExchangeRBAC
+.PARAMETER IncludeExchange
     Grant Exchange RBAC management roles (View-Only Configuration, Security Reader)
     via Exchange Online Management. Requires the ExchangeOnlineManagement module and
     will establish a separate Exchange Online connection.
@@ -44,7 +44,7 @@
 
 .EXAMPLE
     # Include Exchange RBAC roles for Exchange Online resource monitoring
-    ./Enable-UTCM.ps1 -TenantId "00000000-0000-0000-0000-000000000000" -IncludeExchangeRBAC
+    ./Enable-UTCM.ps1 -TenantId "00000000-0000-0000-0000-000000000000" -IncludeExchange
 
 .EXAMPLE
     # Onboard without verification
@@ -57,7 +57,7 @@ param(
 
     [switch]$SkipVerification,
 
-    [switch]$IncludeExchangeRBAC
+    [switch]$IncludeExchange
 )
 
 $ErrorActionPreference = 'Stop'
@@ -128,7 +128,7 @@ else {
     Install-Module Microsoft.Graph.Applications -Scope CurrentUser -Force
 }
 
-if ($IncludeExchangeRBAC) {
+if ($IncludeExchange) {
     if (Get-Module -ListAvailable ExchangeOnlineManagement) {
         Write-Host "ExchangeOnlineManagement module: installed" -ForegroundColor Green
     }
@@ -323,7 +323,7 @@ $exoRBACAssigned = @()
 $exoRBACSkipped = @()
 $exoSPRegistered = $false
 
-if ($IncludeExchangeRBAC) {
+if ($IncludeExchange) {
     Write-Host "`n--- Step 5: Grant Exchange RBAC management roles ---" -ForegroundColor Cyan
     Write-Host "Connecting to Exchange Online..." -ForegroundColor Cyan
 
@@ -394,7 +394,7 @@ if ($IncludeExchangeRBAC) {
 
 # --- Verification ---
 if (-not $SkipVerification) {
-    $stepNum = if ($IncludeExchangeRBAC) { '6' } else { '5' }
+    $stepNum = if ($IncludeExchange) { '6' } else { '5' }
     Write-Host "`n--- Step $stepNum`: Verify UTCM access ---" -ForegroundColor Cyan
     Write-Host "Waiting 10 seconds for permission propagation..." -ForegroundColor Yellow
     Start-Sleep -Seconds 10
@@ -447,7 +447,7 @@ if ($rolesAssigned.Count -gt 0) {
     foreach ($r in $rolesAssigned) { Write-Host "    - $r" -ForegroundColor Green }
 }
 
-if ($IncludeExchangeRBAC) {
+if ($IncludeExchange) {
     Write-Host "`nExchange RBAC roles - Assigned: $($exoRBACAssigned.Count), Already present: $($exoRBACSkipped.Count)" -ForegroundColor Green
     if ($exoRBACAssigned.Count -gt 0) {
         Write-Host "  Newly assigned:" -ForegroundColor Green
@@ -455,9 +455,9 @@ if ($IncludeExchangeRBAC) {
     }
 }
 else {
-    Write-Host "`nExchange RBAC roles: Skipped (use -IncludeExchangeRBAC to grant)" -ForegroundColor Yellow
+    Write-Host "`nExchange RBAC roles: Skipped (use -IncludeExchange to grant)" -ForegroundColor Yellow
     Write-Host "  Exchange resources require RBAC roles in addition to Exchange.ManageAsApp." -ForegroundColor White
-    Write-Host "  Run again with -IncludeExchangeRBAC, or manually run:" -ForegroundColor White
+    Write-Host "  Run again with -IncludeExchange, or manually run:" -ForegroundColor White
     Write-Host "    Connect-ExchangeOnline" -ForegroundColor Gray
     Write-Host "    New-ServicePrincipal -AppId '$UTCMAppId' -ObjectId '$($utcmSP.Id)' -DisplayName 'Unified Tenant Configuration Management'" -ForegroundColor Gray
     foreach ($roleName in $ExchangeRBACRoles) {
