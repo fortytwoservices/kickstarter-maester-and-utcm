@@ -45,7 +45,7 @@ Added the Enable-UTCM.ps1 script to automate the setup of the Unified Tenant Con
 
 ### Removed
 
-- Deprecated the "Priviliged Roles Guard" monitor template as the resources monitored was excessive (more than the allotted quota). Existing monitors of this type will continue to work
+- Deprecated the "Priviliged Roles Guard" monitor template as the resources monitored was excessive (more than the allotted quota).
 
 ---
 
