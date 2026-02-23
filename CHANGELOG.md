@@ -4,16 +4,18 @@ All notable changes to the Maester & UTCM Dashboard will be documented in this f
 
 ---
 
-## [1.15.0] - 2026-02-20
+## [1.15.0] - 2026-02-24
 
 > [!WARNING]
 > Please rerun the Enable-UTCM.ps1 and Grant-APIPermissions.ps1 scripts to ensure all permissions are correctly configured for the latest UTCM and Maester features.
+>
+> We also recommend that you remove existing monitors and recreate them to take advantage of the new and improved set of resources included in the monitor templates. Existing monitors will continue to function.
 
 Added the Enable-UTCM.ps1 script to automate the setup of the Unified Tenant Configuration Management (UTCM) solution. This script grants all necessary Microsoft Graph API permissions, assigns Entra ID directory roles, and optionally configures Exchange Online RBAC roles for comprehensive UTCM functionality. The help page now includes detailed parameter documentation and a preview of the script for easy access.
 
 ### Added
 
-- Enable-UTCM.ps1 script to automate UTCM setup with Graph API permissions, Entra ID roles, and optional Exchange Online RBAC role assignment
+- Enable-UTCM.ps1 script to automate UTCM setup with Graph API permissions, Entra ID roles, and optional Exchange Online RBAC role assignment [Issue #4](https://github.com/fortytwoservices/kickstarter-maester-and-utcm/issues/4)
 - Resource budget tracking with per-run usage indicators
 - Retry baseline functionality when snapshot jobs fail, failed snapshot job details displayed in the UI with error reasons
 - Monitor health status indicators with severity-based risk labeling
@@ -21,23 +23,29 @@ Added the Enable-UTCM.ps1 script to automate the setup of the Unified Tenant Con
 - Script download and preview for Enable-UTCM.ps1 and Grant-APIPermissions.ps1 on the help page
 - Changelog page with version history and update highlights
 - Automated update checks on the homepage with notifications for new releases of the container image
+- Possibility to add custom monitors, where you can specify which resources to include in a monitor
+- Possibility to add emergency access accounts both by UPN and object ID [Issue #2](https://github.com/fortytwoservices/kickstarter-maester-and-utcm/issues/2)
 
 ### Changed
 
-- Log page updated with time filters, and more responsive.
+- Reworked the monitor presets
+- The "Test Results Trend" chart is now sorted in chronological order (oldest to newest) for better trend visualization [Issue #5](https://github.com/fortytwoservices/kickstarter-maester-and-utcm/issues/5)
+- Log page updated with time filters, and more responsive. [Issue #3](https://github.com/fortytwoservices/kickstarter-maester-and-utcm/issues/3)
 - Background refresh uses adaptive intervals (30s to 5m) with fast mode during active wizard flows
 - Improved snapshot error messaging with failed resource details from the Graph API
 - Help page updated with full parameter documentation for Enable-UTCM.ps1
-- Changed the parameters and RBAC permissions/roles of the Grant-APIPermissions.ps1 script to align with the new Enable-UTCM.ps1 script, which now includes an option to assign Exchange Online RBAC roles in addition to Graph API permissions and Entra ID directory roles.
+- Changed the parameters and RBAC permissions/roles of the Grant-APIPermissions.ps1 script to align with the new Enable-UTCM.ps1 script, which now includes an option to assign Exchange Online RBAC roles in addition to Graph API permissions and Entra ID directory roles
 
 ### Fixed
 
-- Log cleanup no longer fails on concurrent file access (idempotent dual-logging with mutex)
-- Wizard button correctly disables when UTCM API is not consented
+- Log cleanup no longer fails on concurrent file access
+- Wizard button correctly disabled when UTCM API is not consented
 - Modals close on Escape key press
+- Improved logging and error handling all over the application, especially around baseline creation and snapshot job monitoring
 
 ### Removed
-- Deprecated the "Priviliged Roles Guard" monitor template as the resources monitored was excessive (more than the allotted quota). Existing monitors of this type will continue to function but cannot be edited or recreated.
+
+- Deprecated the "Priviliged Roles Guard" monitor template as the resources monitored was excessive (more than the allotted quota). Existing monitors of this type will continue to work
 
 ---
 
